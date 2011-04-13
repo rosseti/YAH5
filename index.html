@@ -5,6 +5,7 @@
 	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
 	<script>
  
+	var DEBUG = true;
 	var DRAW_INTERVAL = 200;
 
 	var AREA_WIDTH = 50;
@@ -17,6 +18,14 @@
 	var pieces = []; // pieces array
 
 	var areas = [];
+	
+	function debug(message)
+	{
+		if (DEBUG) {
+			var m = "<div class='message'>"+ message + '</div>';
+			document.getElementById('debugMessages').innerHTML += m;
+		}
+	}
 
 	function Player(name, cells, color, cpu) 
 	{
@@ -42,6 +51,20 @@
 			// adiciona as informações do usuário numa box...
 			var user_type = this.cpu ? "CPU" : "User";
 			document.getElementById('userinfo').innerHTML += "<div class='ublock'><div class='box' style='background-color: "+this.color+"'></div><strong>"+user_type+": </strong>"+this.name+" <br /><div class='ptsinfo'>Pontuação: <span class='pts'>0</span></div></div>";
+			
+			debug('Initializing new player with name: <strong>' + this.name + '</strong>');
+		};
+		
+		this.hasPieceAtCell = function (cell) 
+		{
+			for (var i in this.cells) 
+			{
+				if (this.cells[i].isEqual(cell)) {
+					return true;
+				}
+			}
+			
+			return false;
 		};
 	}
 
@@ -49,6 +72,18 @@
 	{
 	    this.row = row;
 	    this.column = column;
+	
+		this.toString = function () {
+			return "[column: "+this.column+", row: "+this.row+"]";
+		}
+		
+		this.isEqual = function (cell) {
+			if (this.row == cell.row && this.column == cell.column) {
+				return true;
+			}
+			
+			return false;
+		}
 	}
 
 	function Piece() 
@@ -157,8 +192,7 @@
 
 		canvas.addEventListener("click", 		canvasClickHandler, false);
 		canvas.addEventListener("mousemove",	canvasMouseMoveHandler, false);
-		//document.onmousemove = getMouseXY;
-	//	canvas.addEventListener("mouseout",		canvasMouseOutHandler, false);
+		canvas.addEventListener("mouseout",		canvasMouseOutHandler, false);
 		
 		for (var row = 0; row < 8; row++) 
 		{
@@ -178,7 +212,6 @@
 		player2.initialize();
 		
 		setInterval("Main.drawloop()", DRAW_INTERVAL);
-	
 	}
 
 	Main = 
@@ -202,10 +235,14 @@
 		var area;
 		var piece;
 		
-		if ((area = findAreaByPosition(cell)) && (piece = findPieceByPosition(cell))) 
+		if (player1.hasPieceAtCell(cell))
 		{
-			
+			debug('Found piece at cell object: ' + cell.toString());
 		}
+	}
+	
+	canvasMouseOutHandler = function(e) {
+		document.body.style.cursor = "default"; 
 	}
 	
 	canvasMouseMoveHandler = function(e) 
@@ -214,11 +251,13 @@
 		var area;
 		var piece;
 		
-		if (findPieceByPosition(cell)) 
+		if (player1.hasPieceAtCell(cell))
 		{
 			document.body.style.cursor = "pointer";
 		} else {
-			document.body.style.cursor = "";
+			setTimeout(function () {
+				document.body.style.cursor = "default"; 
+			}, 100);
 		}
 	}
 	
@@ -228,30 +267,45 @@
 		var x;
 		var y;
 
-		if (e.pageX != undefined && e.pageY != undefined) {
+		if (e.pageX != undefined && e.pageY != undefined) 
+		{
 			x = e.pageX;
 			y = e.pageY;
 		}
-		else {
-			x = e.clientX + document.body.scrollLeft +
-			document.documentElement.scrollLeft;
-			y = e.clientY + document.body.scrollTop +
-			document.documentElement.scrollTop;
+		else 
+		{
+			x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+			y = e.clientY + document.body.scrollTop	 + document.documentElement.scrollTop;
 		}
 		
 		x -= canvas.offsetLeft;
 		y -= canvas.offsetTop;
 		
-		var cell = new Cell(Math.floor(y/AREA_HEIGHT),
-		                        Math.floor(x/AREA_WIDTH));
+		var cell = new Cell(Math.floor(y/AREA_HEIGHT), Math.floor(x/AREA_WIDTH));
 		return cell;
 	}
  
 	</script>
 	<style type="text/css">
-		body { font-family: "lucida grande", "arial"; font-size: 12px; }
+		body { font-family: "lucida grande", "arial"; font-size: 12px; cursor: default; }
 		h1 { font-family: "lucida grande", "arial"; font-size: 28px; }
 		h1 small { font-size: 12px; color: #888; font-weight: normal; display: block; }
+		
+		#debug 
+		{ 
+			position: fixed;
+			top: 10px; right: 10px;
+			width: 300px; height: 400px;
+			border-radius: 10px; padding: 10px;
+			background-color: #f4f4f4; border: 1px solid #ccc;
+		}
+		
+		#debug #debugMessages {
+			overflow-y: auto;
+			width: 300px;
+			height: 350px;
+		}
+		
 		#main { width: 600px; margin: 0 auto; background: url('trollface.png') no-repeat top 280px; overflow: hidden; }
 		.box { width: 26px; height: 26px; float: left; margin: 0 5px; border: 1px solid #444;	}
 		#canvas { float: left; 	}
@@ -267,7 +321,11 @@
 <body>
 	<div id="main">
 		<h1>The trollers game <small>Dama game written in HTML5 language</small></h1>
-		<canvas id="canvas" width="400" height="400"></canvas>
+		<div id="debug">
+			<h3>Debug messages</h3>
+			<div id="debugMessages"></div>
+		</div>
+		<canvas style="border: 1px solid black" id="canvas" width="400" height="400"></canvas>
 		<div id="userinfo"></div>
 	</div>
 </body>
