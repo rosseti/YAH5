@@ -1,3 +1,13 @@
+<!--
+	This work was developed for the discipline of 
+		Artificial Intelligence of the 4th year of 
+		Information Systems in Univille - University of Joinville Region.
+		
+	Developers:
+		@andreirosseti (Andrei Rosseti, andrei@rosseti.eti.br)
+		@diogocidral (Diogo Z. Cidral, diogo.cidral@gmail.com)
+		
+-->
 <!DOCTYPE HTML>
 <html>
 <head>
@@ -6,7 +16,7 @@
 	<script>
  
 	var DEBUG = true;
-	var DRAW_INTERVAL = 200;
+	var DRAW_INTERVAL = 100;
 
 	var AREA_WIDTH = 50;
 	var AREA_HEIGHT = 50;
@@ -19,52 +29,162 @@
 
 	var areas = [];
 	
+	function disableSelection(target)
+	{
+		if (typeof target.onselectstart!="undefined") //IE route
+			target.onselectstart=function(){return false}
+		else if (typeof target.style.MozUserSelect!="undefined") //Firefox route
+			target.style.MozUserSelect="none"
+		else //All other route (ie: Opera)
+			target.onmousedown=function(){return false}
+	}
+	
 	function debug(message)
 	{
-		if (DEBUG) {
+		if (DEBUG) 
+		{
 			var m = "<div class='message'>"+ message + '</div>';
 			document.getElementById('debugMessages').innerHTML += m;
 		}
+		
+		document.getElementById('debugMessages').scrollTop = document.getElementById('debugMessages').scrollHeight;
 	}
 
-	function Player(name, cells, color, cpu) 
+	function Shot()
+	{
+		this.validate = function(fromCell, toCell) 
+		{
+			// verificar se a jogada está na diagonal
+			var area = findAreaByPosition(toCell);
+			
+			if (area != null) 
+			{
+				if (!player1.hasPieceAtCell(toCell) && !player2.hasPieceAtCell(toCell)) 
+				{
+					var shotType = Math.abs(toCell.column - fromCell.column);
+					
+					if (shotType == 1) 
+					{
+						// normal move
+						player1.movePiece(fromCell, toCell);
+					} else if (shotType == 2) 
+					{
+						// eat piece
+						var minus 		= (toCell.column - fromCell.column) == -2 ? -1 : 1;
+						var targetCell 	= new Cell(toCell.row - 1, fromCell.column + minus);
+						
+						if (player2.hasPieceAtCell(targetCell)) {
+							// compute point to player 1
+							player1.movePiece(fromCell, toCell);
+							player1.increasePoint();
+							player2.removePieceAtCell(targetCell);
+							debug('P1 got the point');
+						} else {
+							debug('ops... invalid shot! try again');
+						}
+						
+					}
+					
+				} else {
+					debug('ops... area contais one piece at place.');
+				}
+				
+			} else {
+				debug('ops... invalid area.');
+			}
+		}
+	}
+
+	function Player(name, pieces, color, cpu) 
 	{
 		if (cpu == undefined) {
 			cpu = false;
 		}
 		
 		this.name = name;
-		this.cells = cells; // player cell pointer
+		this.id	  = this.name.replace(" ", "_");
+		this.pieces = pieces; // player cell pointer
 		this.cpu = cpu;
 		this.color = color;
+		this.pts = 0;
 		
 		this.initialize = function () 
-		{
-			// adiciona as peças
-			if (this.cells.length > 0) 
-			{
-				for (var i in this.cells) {
-					addPiece(this.cells[i], this.color);
-				}
-			}
+		{	
 			
 			// adiciona as informações do usuário numa box...
 			var user_type = this.cpu ? "CPU" : "User";
-			document.getElementById('userinfo').innerHTML += "<div class='ublock'><div class='box' style='background-color: "+this.color+"'></div><strong>"+user_type+": </strong>"+this.name+" <br /><div class='ptsinfo'>Pontuação: <span class='pts'>0</span></div></div>";
+			document.getElementById('userinfo').innerHTML += "<div id='"+this.id+"' class='ublock'><div class='box' style='background-color: "+this.color+"'></div><strong>"+user_type+": </strong>"+this.name+" <br /><div class='ptsinfo'>Pontuação: <span class='pts'>0</span></div></div>";
 			
 			debug('Initializing new player with name: <strong>' + this.name + '</strong>');
 		};
 		
 		this.hasPieceAtCell = function (cell) 
 		{
-			for (var i in this.cells) 
+			for (var i in this.pieces) 
 			{
-				if (this.cells[i].isEqual(cell)) {
+				if (this.pieces[i].isEqual(cell)) {
 					return true;
 				}
 			}
 			
 			return false;
+		};
+		
+		this.removePieceAtCell = function (cell)
+		{
+			for (var i in this.pieces) 
+			{
+				if (this.pieces[i].isEqual(cell)) {
+					//this.pieces[i] = null;
+					this.pieces.splice(i, 1);
+				}
+			}
+		}
+		
+		this.increasePoint = function () 
+		{
+			this.pts++;
+			var pts = document.getElementById(this.id).getElementsByClassName('pts');
+			pts[0].innerHTML = this.pts;
+		};
+		
+		this.drawPieces = function () 
+		{
+			for (var i in this.pieces) 
+			{	
+				var radius = 20;
+				ctx.strokeStyle = "#000000";
+				ctx.fillStyle = this.color; 
+				ctx.beginPath();
+				ctx.arc(this.pieces[i].column * AREA_WIDTH + radius + PIECE_PADDING, this.pieces[i].row * AREA_HEIGHT + radius + PIECE_PADDING, radius, 0, Math.PI*2, true);
+				ctx.closePath();
+				ctx.stroke();
+				ctx.fill();
+			}
+		};
+		
+		this.drawGhostPiece = function (cell) 
+		{
+			var radius = 20;
+			ctx.strokeStyle = "#000000";
+			ctx.fillStyle = this.color; 
+			ctx.beginPath();
+			ctx.arc(cell.column, cell.row, radius, 0, Math.PI*2, true);
+			ctx.closePath();
+			ctx.stroke();
+			ctx.fill();
+		}
+		
+		this.movePiece = function (fromCell, toCell) 
+		{
+			for (var i in this.pieces) 
+			{
+				if (this.pieces[i].isEqual(fromCell)) {
+					this.pieces[i] = toCell;
+				}
+			}
+			
+			return null;
 		};
 	}
 
@@ -73,7 +193,8 @@
 	    this.row = row;
 	    this.column = column;
 	
-		this.toString = function () {
+		this.toString = function () 
+		{
 			return "[column: "+this.column+", row: "+this.row+"]";
 		}
 		
@@ -83,26 +204,6 @@
 			}
 			
 			return false;
-		}
-	}
-
-	function Piece() 
-	{
-		this.column = 0;
-		this.row = 0;
-		this.fill = '#444444';
-	
-		this.draw = function () 
-		{
-			var radius = 20;
-			ctx.strokeStyle = "#000000";
-			ctx.fillStyle = this.fill; 
-			ctx.beginPath();
-			// context.arc(centerX, centerY, radius, startingAngle, endingAngle, antiClockwise);
-			ctx.arc(this.column * AREA_WIDTH + radius + PIECE_PADDING, this.row * AREA_HEIGHT + radius + PIECE_PADDING, radius, 0, Math.PI*2, true);
-			ctx.closePath();
-			ctx.stroke();
-			ctx.fill();
 		}
 	}
 
@@ -129,17 +230,6 @@
 		}
 	}
 
-	function addPiece(cell, fill) 
-	{
-		var piece = new Piece;
-		piece.column = cell.column;
-		piece.row = cell.row;
-		piece.fill = fill;
-		pieces.push(piece);
-		
-		return cell;
-	}
-
 	function addArea(cell, playable) 
 	{
 		var area = new Area;
@@ -161,27 +251,15 @@
 		
 		return null;
 	}
-	
-	function findPieceByPosition(cell) 
-	{
-		for (var i in pieces) {
-			var piece = pieces[i];
-			if (piece.column == cell.column && piece.row == cell.row) 
-			{
-				return piece;
-			}
-		}
-		
-		return null;
-	}
 
 	// player 1 information
-	var piecesArr = [ new Cell(0, 0), new Cell(0, 2), new Cell(0, 4), new Cell(0, 6), new Cell(1, 1), new Cell(1, 3), new Cell(1, 5), new Cell(1, 7)];
+	var piecesArr = [ new Cell(0, 1), new Cell(0, 3), new Cell(0, 5), new Cell(0, 7), new Cell(1, 0), new Cell(1, 2), new Cell(1, 4), new Cell(1, 6), new Cell(2, 1), new Cell(2, 3), new Cell(2, 5), new Cell(2, 7)];
 	var player1 = new Player("Andrei Rosseti", piecesArr, '#AF0000');
 	//
 	
 	// player 2 information
-	var piecesArr = [ new Cell(6, 0), new Cell(6, 2), new Cell(6, 4), new Cell(6, 6), new Cell(7, 1), new Cell(7, 3), new Cell(7, 5), new Cell(7, 7)];
+	// var piecesArr = [ new Cell(5, 0), new Cell(5, 2), new Cell(5, 4), new Cell(5, 6), new Cell(6, 1), new Cell(6, 3), new Cell(6, 5), new Cell(6, 7), new Cell(7, 0), new Cell(7, 2), new Cell(7, 4), new Cell(7, 6)];
+	var piecesArr = [ new Cell(3, 2), new Cell(5, 2), new Cell(5, 4), new Cell(5, 6), new Cell(6, 1), new Cell(6, 3), new Cell(6, 5), new Cell(6, 7), new Cell(7, 0), new Cell(7, 2), new Cell(7, 4), new Cell(7, 6)];
 	var player2 = new Player("THOR", piecesArr, '#F4F2C4', true);
 	//
 
@@ -190,9 +268,10 @@
 		canvas	= document.getElementById("canvas");
 		ctx		= canvas.getContext("2d");
 
-		canvas.addEventListener("click", 		canvasClickHandler, false);
+		canvas.addEventListener("mousedown", 	canvasDownHandler, false);
 		canvas.addEventListener("mousemove",	canvasMouseMoveHandler, false);
 		canvas.addEventListener("mouseout",		canvasMouseOutHandler, false);
+		disableSelection(document.body);
 		
 		for (var row = 0; row < 8; row++) 
 		{
@@ -200,7 +279,7 @@
 			{
 				var playable = false;
 				
-				if (((column+row) % 2) == 0) {
+				if (((column+row) % 2) == 1) {
 					playable = true;
 				}
 			
@@ -222,23 +301,57 @@
 				areas[i].draw();
 			}
 		
-			for (var i in pieces) {
-				pieces[i].draw();
-			}
+			player1.drawPieces();
+			player2.drawPieces();
 			
 		}
 	
 	}
 	
-	canvasClickHandler = function(e) {
+	var is_dragging = false;
+	var last_used_piece = null;
+	
+	canvasDownHandler = function(e) {
 		var cell = canvasGetMousePosition(e);
 		var area;
 		var piece;
 		
 		if (player1.hasPieceAtCell(cell))
 		{
+			last_used_piece = cell;
+			canvas.addEventListener("mousemove",	canvasMovePieceHandler, false);
+			canvas.addEventListener("mouseup",		canvasUpPieceHandler, false);
+			
 			debug('Found piece at cell object: ' + cell.toString());
+			debug('Start dragging event');
+			is_dragging = true;
 		}
+	}
+	
+	canvasMovePieceHandler = function (e) 
+	{
+		if (is_dragging) 
+		{
+			var cell = canvasGetMousePosition(e, false);
+			player1.drawGhostPiece(cell);
+		}
+	}
+	
+	canvasUpPieceHandler = function (e) 
+	{
+		var shot = new Shot();
+		var toCell 	= canvasGetMousePosition(e);
+		var fromCell= last_used_piece;
+		
+		shot.validate(fromCell, toCell);
+		
+		//player1.movePiece(last_used_piece, cell);
+		debug('Ending drag event');
+		canvas.addEventListener("mousemove",	canvasMouseMoveHandler, false);
+		canvas.removeEventListener("mouseup");
+		
+		document.body.style.cursor = "default";
+		is_dragging = false;
 	}
 	
 	canvasMouseOutHandler = function(e) {
@@ -261,11 +374,14 @@
 		}
 	}
 	
-	canvasGetMousePosition = function(e) 
+	canvasGetMousePosition = function(e, withCell) 
 	{
 		var canvas = document.getElementById('canvas');
 		var x;
 		var y;
+		var cell;
+		
+		if (withCell == undefined) withCell = true;
 
 		if (e.pageX != undefined && e.pageY != undefined) 
 		{
@@ -281,7 +397,12 @@
 		x -= canvas.offsetLeft;
 		y -= canvas.offsetTop;
 		
-		var cell = new Cell(Math.floor(y/AREA_HEIGHT), Math.floor(x/AREA_WIDTH));
+		if (withCell) {
+			cell = new Cell(Math.floor(y/AREA_HEIGHT), Math.floor(x/AREA_WIDTH));
+		} else {
+			cell = new Cell(Math.floor(y), Math.floor(x));
+		}
+		
 		return cell;
 	}
  
@@ -316,6 +437,7 @@
 		#userinfo .ublock { overflow: hidden; margin: 5px 0; }
 		#userinfo .ublock .ptsinfo { color: #888; font-size: 11px; }
 		#userinfo .ublock .ptsinfo .pts { font-weight: bold; }
+		#footer { width: 600px; margin: 15px auto 0 auto; font-size: 10px; }
 	</style>
 </head>
 <body>
@@ -327,6 +449,9 @@
 		</div>
 		<canvas style="border: 1px solid black" id="canvas" width="400" height="400"></canvas>
 		<div id="userinfo"></div>
+	</div>
+	<div id="footer">
+		Developed by Andrei Rosseti and Diogo Z. Cidral
 	</div>
 </body>
 </html>
