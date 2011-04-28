@@ -221,67 +221,69 @@
 			for (var i in this.pieces) 
 			{
 				var fromCell = this.pieces[i];
-				var toCell = this.pieces[i].clone();
+				
+				var diagLeftToCell	= this.pieces[i].clone();
+				var diagRightToCell	= this.pieces[i].clone();
 				
 				// can move to ...
-				
-				toCell.row--;
+				diagLeftToCell.row--;
+				diagRightToCell.row--;
 				
 				if (fromCell.column > 0 || fromCell.column < 7) 
 				{
-					toCell.column--;
+					diagLeftToCell.column--;
 					
-					if (player1.hasPieceAtCell(toCell)) {
+					if (player1.hasPieceAtCell(diagLeftToCell) && fromCell.column > 1 && fromCell.row > 1) 
+					{	
+						diagLeftToCell.column--;
+						diagLeftToCell.row--;
 						
-						toCell.column--;
-						toCell.row--;
-						
-						if (!player1.hasPieceAtCell(toCell) && !player2.hasPieceAtCell(toCell)) {
-							toCell.weight += 2;
+						if (!player1.hasPieceAtCell(diagLeftToCell) && !player2.hasPieceAtCell(diagLeftToCell)) {
+							diagLeftToCell.weight += 10;
 						} else {
-							toCell.column++;
-							toCell.row++;
+							diagLeftToCell.column++;
+							diagLeftToCell.row++;
 						}
 					} 
 					
-					if (!player2.hasPieceAtCell(toCell) && !player1.hasPieceAtCell(toCell) && findAreaByPosition(toCell)) {
-						toCell.weight += 1;
+					if (!player2.hasPieceAtCell(diagLeftToCell) && !player1.hasPieceAtCell(diagLeftToCell) && findAreaByPosition(diagLeftToCell)) {
+						diagLeftToCell.weight += 1;
 					}
 					
-					if (toCell.weight > 0) { 
+					if (diagLeftToCell.weight > 0) { 
 						var shot = new Shot();
 						shot.fromCell = fromCell;
-						shot.toCell = toCell;
+						shot.toCell = diagLeftToCell;
 						shots.push(shot);
 					}
 					
-					// new toCell
+					// diagonal right to cell
+					diagRightToCell.column++;
+				
+					if (player1.hasPieceAtCell(diagRightToCell) && fromCell.column < 6 && fromCell.row > 1) {
 					
-					var toCell = this.pieces[i].clone();
+						diagRightToCell.column++;
+						diagRightToCell.row--;
 					
-					toCell.column++;
-					
-					if (player1.hasPieceAtCell(toCell)) {
-						
-						toCell.column++;
-						toCell.row--;
-						
-						if (!player1.hasPieceAtCell(toCell) && !player2.hasPieceAtCell(toCell)) {
-							toCell.weight += 2;
+						if (!player1.hasPieceAtCell(diagRightToCell) && !player2.hasPieceAtCell(diagRightToCell)) {
+							diagRightToCell.weight += 10;
 						} else {
-							toCell.column++;
-							toCell.row++;
+							// cancel to cell.
+							diagRightToCell.column--;
+							diagRightToCell.row++;
 						}
+					} else {
+						diagRightToCell.row--;
 					}
-					
-					if (!player2.hasPieceAtCell(toCell) && !player1.hasPieceAtCell(toCell) && findAreaByPosition(toCell)) {
-						toCell.weight += 1;
+				
+					if (!player2.hasPieceAtCell(diagRightToCell) && !player1.hasPieceAtCell(diagRightToCell) && findAreaByPosition(diagRightToCell)) {
+						diagRightToCell.weight += 1;
 					}	
-					
-					if (toCell.weight > 0) { 
+				
+					if (diagRightToCell.weight > 0) { 
 						var shot = new Shot();
 						shot.fromCell = fromCell;
-						shot.toCell = toCell;
+						shot.toCell = diagRightToCell;
 						shots.push(shot);
 					}
 				}
@@ -290,28 +292,44 @@
 			shots.sort(sortWeightShot);
 			
 			var pop = false;
-			for (var i in shots) {
+			
+			for (var i in shots) 
+			{
 				var shot = shots[i];
 				
 				if (shot.toCell.weight != 1) {
 					pop = true;
 				}
+				
+				debug(i + ": " + shot.toCell.weight);
 			}
 			
 			
 			if (pop) 
 			{
-				var idx = (shots.length - 1);
+				var idx 		= (shots.length - 1);
 				var fromCell 	= shots[idx].fromCell;
 				var toCell 		= shots[idx].toCell;
 				
-				var shotType  = Math.abs(toCell.column - fromCell.column);
-				var direction = (toCell.column - fromCell.column).toString()[0] == '-' ? 'LEFT' : 'RIGHT';
+				var minus 		= (toCell.column - fromCell.column) == -2 ? -1 : 1;
+				var targetCell 	= new Cell(toCell.row + 1, fromCell.column + minus);
 				
-				player2.movePiece(fromCell, toCell);
+				debug(targetCell);
 				
-			} else {
-				var idx = Math.ceil(Math.random() * (shots.length - 1));
+				if (player1.hasPieceAtCell(targetCell)) 
+				{
+					// compute point to player 2
+					player2.movePiece(fromCell, toCell);
+					player2.increasePoint();
+					player1.removePieceAtCell(targetCell);
+					debug('P2 got the point');
+				} 
+				
+				
+			} else 
+			{
+				debug("Tamanho do array de shots: " +shots.length);
+				var idx = Math.floor(Math.random() * (shots.length - 1));
 				player2.movePiece(shots[idx].fromCell, shots[idx].toCell);
 			}
 			
@@ -338,13 +356,15 @@
 		this.weight = 0;
 	    this.row = row;
 	    this.column = column;
+		this.isDama = false;
 	
 		this.toString = function () 
 		{
 			return "[column: "+this.column+", row: "+this.row+", weight: "+this.weight+"]";
 		}
 		
-		this.isEqual = function (cell) {
+		this.isEqual = function (cell) 
+		{
 			if (this.row == cell.row && this.column == cell.column) {
 				return true;
 			}
@@ -396,7 +416,8 @@
 	
 	function findAreaByPosition(cell) 
 	{
-		for (var i in areas) {
+		for (var i in areas) 
+		{
 			var area = areas[i];
 			if (area.playable && area.column == cell.column && area.row == cell.row) 
 			{
@@ -413,7 +434,7 @@
 	//
 	
 	// player 2 information
-	var piecesArr = [ new Cell(3, 2), new Cell(5, 2), new Cell(5, 4), new Cell(5, 6), new Cell(6, 1), new Cell(6, 3), new Cell(6, 5), new Cell(6, 7), new Cell(7, 0), new Cell(7, 2), new Cell(7, 4), new Cell(7, 6)];
+	var piecesArr = [ new Cell(5, 0), new Cell(5, 2), new Cell(5, 4), new Cell(5, 6), new Cell(6, 1), new Cell(6, 3), new Cell(6, 5), new Cell(6, 7), new Cell(7, 0), new Cell(7, 2), new Cell(7, 4), new Cell(7, 6)];
 	var player2 = new Player("John B.", piecesArr, '#F4F2C4', true);
 	//
 
