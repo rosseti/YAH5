@@ -63,15 +63,18 @@
 			
 			if (area != null) 
 			{
-				if (!player1.hasPieceAtCell(toCell) && !player2.hasPieceAtCell(toCell)) 
+				if (player1.hasPieceAtCell(toCell) == -1 && player2.hasPieceAtCell(toCell) == -1) 
 				{
+					var pidx 	  = player1.hasPieceAtCell(toCell);
 					var shotType  = Math.abs(toCell.column - fromCell.column);
 					var direction = (toCell.row - fromCell.row).toString()[0] == '-' ? 'UP' : 'DOWN';
 					
-					if (direction == 'UP') 
+					if (direction == 'UP' && !player1.pieceIsDama(toCell)) 
 					{
 						debug('Invalid direction');
 						return; // break moviment here.
+					} else {
+						debug('Dama whatahell.');
 					}
 					
 					if (shotType == 1) 
@@ -84,8 +87,9 @@
 						// eat piece
 						var minus 		= (toCell.column - fromCell.column) == -2 ? -1 : 1;
 						var targetCell 	= new Cell(toCell.row - 1, fromCell.column + minus);
+						var pidx 		= player2.hasPieceAtCell(targetCell);
 						
-						if (player2.hasPieceAtCell(targetCell)) 
+						if (pidx != -1) 
 						{
 							// compute point to player 1
 							player1.movePiece(fromCell, toCell);
@@ -95,8 +99,8 @@
 						} else {
 							debug('ops... invalid shot! try again');
 						}
-						
 					}
+					
 					
 				} else {
 					debug('ops... area contais one piece at place.');
@@ -121,6 +125,18 @@
 		this.color = color;
 		this.pts = 0;
 		
+		this.pieceIsDama = function(toCell)
+		{
+			for (var i in this.pieces) 
+			{
+				if (this.pieces[i].isDama) {
+					return true;
+				}
+			}
+			
+			return false;
+		};
+		
 		this.initialize = function () 
 		{	
 			
@@ -136,11 +152,11 @@
 			for (var i in this.pieces) 
 			{
 				if (this.pieces[i].isEqual(cell)) {
-					return true;
+					return i;
 				}
 			}
 			
-			return false;
+			return -1;
 		};
 		
 		this.removePieceAtCell = function (cell)
@@ -202,8 +218,16 @@
 		{
 			for (var i in this.pieces) 
 			{
-				if (this.pieces[i].isEqual(fromCell)) {
-					this.pieces[i] = toCell;
+				if (this.pieces[i].isEqual(fromCell)) 
+				{
+					if (toCell.row == 7) 
+					{
+						this.pieces[i].setDama(true);
+						debug('Giving dama to Piece at Cell: ' + toCell);
+					}
+					
+					this.pieces[i].row = toCell.row;
+					this.pieces[i].column = toCell.column;
 				}
 			}
 			
@@ -229,54 +253,54 @@
 				diagLeftToCell.row--;
 				diagRightToCell.row--;
 				
-				if (fromCell.column > 0 || fromCell.column < 7) 
-				{
+				diagLeftToCell.column--;
+				
+				if (player1.hasPieceAtCell(diagLeftToCell) != -1 && fromCell.column > 1 && fromCell.row > 1) 
+				{	
 					diagLeftToCell.column--;
+					diagLeftToCell.row--;
 					
-					if (player1.hasPieceAtCell(diagLeftToCell) && fromCell.column > 1 && fromCell.row > 1) 
-					{	
-						diagLeftToCell.column--;
-						diagLeftToCell.row--;
-						
-						if (!player1.hasPieceAtCell(diagLeftToCell) && !player2.hasPieceAtCell(diagLeftToCell)) {
-							diagLeftToCell.weight += 10;
-						} else {
-							diagLeftToCell.column++;
-							diagLeftToCell.row++;
-						}
-					} 
-					
-					if (!player2.hasPieceAtCell(diagLeftToCell) && !player1.hasPieceAtCell(diagLeftToCell) && findAreaByPosition(diagLeftToCell)) {
-						diagLeftToCell.weight += 1;
+					if (player1.hasPieceAtCell(diagLeftToCell) == -1 && player2.hasPieceAtCell(diagLeftToCell) == -1) {
+						diagLeftToCell.weight += 10;
+					} else {
+						diagLeftToCell.column++;
+						diagLeftToCell.row++;
 					}
-					
-					if (diagLeftToCell.weight > 0) { 
-						var shot = new Shot();
-						shot.fromCell = fromCell;
-						shot.toCell = diagLeftToCell;
-						shots.push(shot);
-					}
+				} 
+				
+				if (player2.hasPieceAtCell(diagLeftToCell) == -1 && player1.hasPieceAtCell(diagLeftToCell) == -1 && findAreaByPosition(diagLeftToCell)) {
+					diagLeftToCell.weight += 1;
+				}
+				
+				if (diagLeftToCell.weight > 0) { 
+					var shot = new Shot();
+					shot.fromCell = fromCell;
+					shot.toCell = diagLeftToCell;
+					shots.push(shot);
+				}
 					
 					// diagonal right to cell
+				if (fromCell.column < 7) 
+				{
 					diagRightToCell.column++;
 				
-					if (player1.hasPieceAtCell(diagRightToCell) && fromCell.column < 6 && fromCell.row > 1) {
+					if (player1.hasPieceAtCell(diagRightToCell) != -1 && fromCell.column < 6 && fromCell.row > 1) {
 					
 						diagRightToCell.column++;
 						diagRightToCell.row--;
 					
-						if (!player1.hasPieceAtCell(diagRightToCell) && !player2.hasPieceAtCell(diagRightToCell)) {
+						if (player1.hasPieceAtCell(diagRightToCell) == -1 && player2.hasPieceAtCell(diagRightToCell) == -1) {
 							diagRightToCell.weight += 10;
 						} else {
 							// cancel to cell.
 							diagRightToCell.column--;
 							diagRightToCell.row++;
 						}
-					} else {
+					} /*else { // acho que o problema estava aqui ...
 						diagRightToCell.row--;
-					}
+					}*/
 				
-					if (!player2.hasPieceAtCell(diagRightToCell) && !player1.hasPieceAtCell(diagRightToCell) && findAreaByPosition(diagRightToCell)) {
+					if (player2.hasPieceAtCell(diagRightToCell) == -1 && player1.hasPieceAtCell(diagRightToCell) == -1 && findAreaByPosition(diagRightToCell)) {
 						diagRightToCell.weight += 1;
 					}	
 				
@@ -287,6 +311,8 @@
 						shots.push(shot);
 					}
 				}
+				
+				
 			}
 			
 			shots.sort(sortWeightShot);
@@ -361,6 +387,11 @@
 		this.toString = function () 
 		{
 			return "[column: "+this.column+", row: "+this.row+", weight: "+this.weight+"]";
+		}
+		
+		this.setDama = function (bool)
+		{
+			this.isDama = bool;
 		}
 		
 		this.isEqual = function (cell) 
